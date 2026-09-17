@@ -1,0 +1,57 @@
+ANALYSIS 4
+Statistical and Effect-Size Validation of Persona Differences
+================================================================================
+
+Analysis sample size: 2237
+PCA components: 19
+Explained variance: 0.9036
+
+IMPORTANT INTERPRETATION:
+These tests quantify persona differentiation for characteristics used in or derived from the segmentation feature space. They are not treated as independent validation of cluster discovery. Independent outcome validity is provided separately by the held-out final campaign Response analysis.
+
+NUMERIC EFFECT SIZES
+                    Feature  Kruskal_H  Epsilon_Squared Effect_Magnitude  Raw_P_Value  BH_Adjusted_P  Significant_BH
+                 TotalSpend  1582.4935           0.7072            Large       0.0000         0.0000            True
+             TotalPurchases  1465.8627           0.6550            Large       0.0000         0.0000            True
+            MntMeatProducts  1460.2432           0.6524            Large       0.0000         0.0000            True
+                     Income  1419.7102           0.6343            Large       0.0000         0.0000            True
+                   MntWines  1398.3920           0.6247            Large       0.0000         0.0000            True
+        NumCatalogPurchases  1388.8494           0.6205            Large       0.0000         0.0000            True
+          NumStorePurchases  1270.1537           0.5673            Large       0.0000         0.0000            True
+            NumWebPurchases   905.5133           0.4039            Large       0.0000         0.0000            True
+                    Kidhome   802.8078           0.3579            Large       0.0000         0.0000            True
+               MntGoldProds   697.0298           0.3105            Large       0.0000         0.0000            True
+          NumWebVisitsMonth   691.5343           0.3080            Large       0.0000         0.0000            True
+                   Teenhome   407.7818           0.1809            Large       0.0000         0.0000            True
+PreviousCampaignAcceptances   332.8582           0.1473            Large       0.0000         0.0000            True
+                        Age    97.5291           0.0419            Small       0.0000         0.0000            True
+                 TenureDays    31.9362           0.0125            Small       0.0000         0.0000            True
+                    Recency    14.1448           0.0045       Negligible       0.0068         0.0068            True
+
+CATEGORICAL EFFECT SIZES
+       Feature  Chi_Square  Degrees_of_Freedom  Raw_P_Value  Cramers_V  BH_Adjusted_P  Significant_BH
+     Education    102.7751                  16       0.0000     0.1072         0.0000            True
+Marital_Status     25.4352                  28       0.6041     0.0533         0.6041           False
+
+TOP PAIRWISE DIFFERENCES
+                    Feature  Cluster_A  Cluster_B  Median_A  Median_B  Rank_Biserial  Holm_Adjusted_P
+PreviousCampaignAcceptances          2          3       0.0       3.0        -0.9964              0.0
+                 TotalSpend          0          2    1234.0      74.0         0.9784              0.0
+PreviousCampaignAcceptances          3          4       3.0       0.0         0.9783              0.0
+            MntMeatProducts          0          2     384.0      17.0         0.9698              0.0
+PreviousCampaignAcceptances          1          3       0.0       3.0        -0.9683              0.0
+             TotalPurchases          0          2      19.0       6.0         0.9493              0.0
+                     Income          0          2   73705.0   36309.0         0.9384              0.0
+        NumCatalogPurchases          0          2       5.0       1.0         0.9348              0.0
+                 TotalSpend          1          2     734.0      74.0         0.9227              0.0
+             TotalPurchases          1          2      17.0       6.0         0.9212              0.0
+                   MntWines          1          2     489.5      27.0         0.9164              0.0
+                   MntWines          0          2     516.0      27.0         0.9161              0.0
+PreviousCampaignAcceptances          0          3       0.0       3.0        -0.9070              0.0
+                   MntWines          2          3      27.0    1044.5        -0.9017              0.0
+                     Income          2          3   36309.0   70896.5        -0.8987              0.0
+                 TotalSpend          2          3      74.0    1375.0        -0.8915              0.0
+          NumStorePurchases          0          2       8.0       3.0         0.8789              0.0
+          NumStorePurchases          1          2       8.0       3.0         0.8558              0.0
+        NumCatalogPurchases          2          3       1.0       4.5        -0.8490              0.0
+             TotalPurchases          2          3       6.0      18.5        -0.8428              0.0

@@ -1,0 +1,639 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{authblk}
+\usepackage{pdflscape}
+\usepackage{textcomp}
+\usepackage{enumitem}
+\sloppy
+\onehalfspacing
+
+\title{Stability-Aware Customer Micro-Segmentation with Outcome-Held-Out Campaign Validation and Feature-Ablation Analysis}
+
+\author[1,2]{Md Abu Sufian}
+\author[3,4]{Md Aminul Islam}
+\author[4]{Md Mosaddequl Haq}
+\author[2]{Nadeem Qazi}
+\author[3]{Nabeela Berardinelli}
+
+\affil[1]{Department of Bioinformatics, Institute of Structural Molecular Biology, Birkbeck-UCL Joint, London, UK, WC1E 7HX}
+\affil[2]{Department of Computer Science, University of East London, London, UK, E16 2RD}
+\affil[3]{Department of Computer Science and Digital Technologies, School of Architecture, Computing and Engineering, University of East London, London E16 2RD, United Kingdom}
+\affil[4]{Ulster University London, UK, EC1R 4TF}
+\affil[ ]{\textbf{Corresponding author:} Md Abu Sufian, \texttt{m.sufian@uel.ac.uk}}
+\renewcommand\Authands{ and }
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Customer segmentation studies often assess clusters using internal compactness while using the same campaign variables both to construct and to justify the resulting personas. This study develops a stability-aware customer micro-segmentation framework that separates cluster discovery from downstream campaign validation. Using the Customer Personality Analysis dataset, 2,237 eligible customers were represented by demographic, spending, channel, complaint, and historical campaign variables, while the final-campaign \texttt{Response} variable was held out from clustering. Numerical features were standardised, categorical features were one-hot encoded, and principal component analysis retained 19 components explaining 90.36\% of variance. Agglomerative Ward clustering at the prespecified micro-segmentation operating point of $k=5$ produced clusters of 635, 390, 1,162, 30, and 20 customers. Removing \texttt{Response} from the clustering inputs improved silhouette from 0.1672 to 0.1995 while preserving moderate agreement with the original response-inclusive solution (ARI=0.5540; NMI=0.5419). The outcome-held-out clusters remained strongly associated with final-campaign response ($\chi^2=126.37$, $p=2.33\times10^{-26}$, Cramer's $V=0.2377$), with response rates ranging from 10.3\% to 66.7\%. Feature-group ablation showed that spending alone gave the strongest internal compactness (silhouette=0.4031), whereas adding historical campaign behaviour produced the strongest held-out response differentiation (56.34 percentage-point range), demonstrating that geometric compactness and decision relevance are not equivalent objectives. Across 200 repeated 85\% subsamples, global stability was moderate-to-strong (mean ARI=0.6612; mean NMI=0.6443), but cluster-level Jaccard analysis revealed substantial heterogeneity, including one unstable broad segment and highly recoverable niche segments. Effect-size analysis showed that total spend ($\epsilon^2=0.707$), total purchases (0.655), meat spending (0.652), income (0.634), and wine spending (0.625) were the dominant persona differentiators, whereas age, tenure, and recency contributed relatively little. The resulting framework provides a more rigorous basis for customer micro-segmentation by combining outcome separation, ablation, cluster-specific reproducibility, and effect-size profiling without treating internal compactness as the sole criterion of segmentation quality.
+\end{abstract}
+
+\textbf{Keywords:} customer micro-segmentation; outcome-held-out validation; clustering stability; feature ablation; campaign response; Agglomerative Ward clustering; customer personas; decision-oriented analytics.
+
+\section{Introduction}
+Customer segmentation is a core component of marketing analytics because heterogeneous customers differ in purchasing intensity, channel preference, promotion sensitivity, and potential value to the firm \cite{ref6,ref7}. Classical segmentation studies often operationalise this heterogeneity through clustering, with K-Means, hierarchical clustering, Gaussian mixture models, density-based clustering, and related methods used to discover groups from demographic and behavioural data \cite{ref3,ref4,ref12}. The practical attraction of these methods is clear: a segmentation can translate a large customer table into a smaller set of interpretable personas that support differentiated communication, retention, and product strategies.
+
+The methodological problem is that segmentation quality is frequently judged almost entirely through internal geometry, such as silhouette, Davies--Bouldin, or Calinski--Harabasz scores. These measures are useful, but they answer only whether points are compact and separated in the chosen feature space. They do not establish that the resulting groups are reproducible under perturbation, nor that they differ on a commercially meaningful outcome that was not already used to create the clusters. This distinction is important because a highly compact segmentation can be operationally uninformative, while a moderately overlapping segmentation can still distinguish customers with markedly different campaign behaviour.
+
+A second problem concerns circular validation. If campaign-response variables are included in the clustering input and then cluster differences in campaign response are used as evidence of decision utility, the downstream validation is partly tautological. Such a design can exaggerate the apparent marketing relevance of a segmentation. A more defensible strategy is to reserve a campaign outcome from cluster construction and evaluate whether the unsupervised solution still differentiates that held-out outcome.
+
+A third issue is that global robustness indices can obscure unstable individual personas. Average ARI or NMI may indicate acceptable partition-level reproducibility while one cluster remains highly unstable and another is consistently recovered. This matters for micro-segmentation because small personas are often the most managerially interesting and the most vulnerable to sampling variation. Cluster-specific stability should therefore be quantified directly rather than inferred from a global score.
+
+This study addresses these issues using the Customer Personality Analysis dataset. Rather than proposing a new clustering algorithm, the contribution is an evaluation framework for customer micro-segmentation that explicitly separates discovery, robustness, and downstream relevance. The final-campaign \texttt{Response} variable is removed from clustering and used only as a held-out validation outcome. Feature-group ablations quantify how demographic, spending, channel, and historical campaign information affect both cluster compactness and downstream response differentiation. Repeated subsampling provides global ARI/NMI and cluster-specific Jaccard recovery, and formal effect-size analysis quantifies which customer characteristics most strongly differentiate the derived personas.
+
+The study makes four contributions. First, it introduces \emph{outcome-held-out campaign validation} into the segmentation workflow, reducing circularity between cluster construction and decision evaluation. Second, it uses \emph{feature-group ablation} to show that the features producing the most compact clusters are not necessarily those producing the most decision-relevant segmentation. Third, it adds \emph{cluster-specific bootstrap stability}, distinguishing reproducible personas from unstable ones. Fourth, it provides \emph{formal effect-size profiling} so that persona differentiation is quantified rather than inferred from descriptive means alone.
+
+The central research questions are:
+\begin{enumerate}[label=RQ\arabic*.]
+    \item Does a five-segment customer solution remain decision-relevant when the final campaign response is completely excluded from clustering?
+    \item Which feature domains contribute most to internal cluster quality and which contribute most to held-out campaign-response differentiation?
+    \item Are all personas equally reproducible under repeated perturbation, or is stability heterogeneous across clusters?
+    \item Which customer characteristics show the largest effect sizes across the derived personas?
+\end{enumerate}
+
+\section{Related Work}
+\subsection{Customer segmentation and decision relevance}
+Market segmentation is grounded in the idea that firms create greater value when they recognise meaningful differences among customers and tailor value propositions accordingly \cite{ref6,ref7}. Relationship marketing and customer-value perspectives further imply that segments should support differentiated allocation of retention, service, and communication resources \cite{ref8}. In analytics, this has led to extensive use of clustering for behavioural and value-based segmentation \cite{ref12,ref14,ref16}.
+
+Recent work increasingly combines clustering with feature engineering, mixed-data representations, or downstream business interpretation. FAMD-based pipelines have been used to improve mixed-type customer representations \cite{ref15}; hierarchical approaches have been applied to RFM-style segmentation \cite{ref17}; and optimisation-enhanced clustering has sought to improve cluster quality and adaptability \cite{ref18}. Applied studies also translate clusters into operational personas or response models \cite{ref13,ref19,ref24}. Nevertheless, three validation gaps remain common: held-out decision outcomes are rarely separated from clustering inputs, global metrics are often preferred over cluster-specific reproducibility, and feature-family contribution is seldom quantified through ablation.
+
+\subsection{Internal validity versus external usefulness}
+Silhouette analysis remains a widely used measure of cohesion and separation \cite{ref30}. It is valuable for identifying clearly separated structure, but a segmentation selected solely by silhouette can favour coarse partitions that collapse commercially meaningful behavioural variation. In customer analytics, therefore, internal compactness should be treated as one criterion rather than a complete definition of segmentation quality. This study operationalises that principle by jointly examining internal geometry, held-out campaign association, stability, and persona effect sizes.
+
+\subsection{Reproducibility of cluster solutions}
+Cluster reproducibility is particularly important because unsupervised solutions can change when observations are removed, reweighted, or resampled. Bootstrap and subsampling approaches have long been recommended for assessing reproducibility \cite{ref2}, while consensus methods provide complementary views of co-assignment structure \cite{ref29}. However, a single partition-level score can still conceal local instability. The present work therefore reports both ARI/NMI and cluster-specific Jaccard recovery.
+
+\section{Data and Preprocessing}
+\subsection{Dataset}
+The analysis uses the publicly available \textit{Customer Personality Analysis} dataset, which contains 2,240 raw records and 29 original variables covering demographics, household composition, product-category spending, purchasing channels, historical campaign acceptance, complaints, and final-campaign response. After explicit date parsing and eligibility filtering, 2,237 customers remained for modelling. The overall held-out final-campaign response rate was 14.93\%.
+
+\begin{table}[!ht]
+\centering
+\caption{Dataset and locked modelling configuration.}
+\label{tab:dataset_overview}
+\begin{tabular}{ll}
+\toprule
+\textbf{Characteristic} & \textbf{Value} \\
+\midrule
+Raw customers & 2,240 \\
+Eligible analysis customers & 2,237 \\
+Raw attributes & 29 \\
+Categorical clustering variables & 2 (Education, Marital\_Status) \\
+Numerical clustering variables, held-out model & 23 \\
+Post-encoding features, held-out model & 36 \\
+PCA components retained & 19 \\
+Explained variance retained & 90.36\% \\
+Final-campaign response rate & 14.93\% \\
+Clustering algorithm & Agglomerative Ward \\
+Number of clusters & 5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Corrected temporal preprocessing}
+Customer dates were parsed explicitly as day-month-year using the format \texttt{\%d-\%m-\%Y}. This avoids the ambiguity that can arise from automatic date parsing. Customer age was defined relative to the latest observation year in the data, 2014,
+\begin{equation}
+\text{Age}_i = 2014-\text{YearBirth}_i,
+\end{equation}
+rather than relative to the current calendar year. Customer tenure was measured relative to the latest customer-enrolment date observed in the dataset,
+\begin{equation}
+\text{TenureDays}_i = t_{\max}-t_i.
+\end{equation}
+Income was median-imputed. Records were retained when age was between 18 and 100 years, income was positive, and customer date was valid. No final-campaign \texttt{Response} information was used to define the locked held-out segmentation.
+
+\subsection{Feature representation}
+The held-out clustering model used 23 numerical variables: income, age, household composition, recency, tenure, six product-spending variables, five purchase/channel variables, five previous-campaign acceptance indicators, and complaint status. Education and marital status were one-hot encoded. Numerical variables were median-imputed where needed and standardised to zero mean and unit variance. Let $X$ denote the post-encoding design matrix. Principal component analysis was applied to obtain
+\begin{equation}
+Z=X_sW,
+\end{equation}
+where $X_s$ is the standardised design matrix and $W$ contains the leading principal axes. Components were retained until cumulative explained variance exceeded 90\%. In the locked held-out pipeline this produced 19 components explaining 90.36\% of total variance.
+
+\subsection{Clustering operating point}
+Agglomerative Ward clustering with Euclidean distance was used at $k=5$. The five-cluster setting was retained as the prespecified micro-segmentation operating point from the original study so that the new validation experiments evaluated the same intended segmentation granularity rather than selecting a new $k$ after observing the held-out outcome. Accordingly, the current manuscript does not claim that $k=5$ maximises silhouette. The purpose is to test whether a five-persona solution can remain decision-relevant and reproducible under a stricter validation design.
+
+\section{Validation Framework}
+\subsection{Analysis 1: outcome-held-out validation and leakage sensitivity}
+Two otherwise matched pipelines were fitted. The \emph{full} pipeline included final-campaign \texttt{Response} among the numerical clustering variables, while the \emph{held-out} pipeline excluded it. The two partitions were compared with adjusted Rand index (ARI) and normalised mutual information (NMI). The held-out partition was then evaluated against \texttt{Response} using a $5\times2$ contingency table, Pearson's $\chi^2$ test, Cramer's $V$, cluster-specific response rates with 95\% Wilson intervals, and odds ratios comparing each cluster with all remaining customers.
+
+Cramer's $V$ was computed as
+\begin{equation}
+V=\sqrt{\frac{\chi^2}{n\min(r-1,c-1)}}.
+\end{equation}
+This analysis tests whether campaign-response differentiation persists when the evaluated outcome is absent from cluster construction.
+
+\subsection{Analysis 2: feature-group ablation}
+Seven feature configurations were compared at the same Ward $k=5$ operating point: demographics; spending; channel behaviour; demographics+spending; spending+channel; all behavioural features without campaign history; and the full held-out set including historical campaign acceptance. For each configuration, PCA retained at least 90\% variance and clustering quality was quantified by silhouette. Decision relevance was evaluated using the held-out final-campaign response through Cramer's $V$ and the range between the lowest and highest cluster response rates. This design explicitly separates \emph{internal geometry} from \emph{downstream response differentiation}.
+
+\subsection{Analysis 3: global and cluster-specific stability}
+The complete held-out preprocessing, PCA, and Ward pipeline was refitted on 200 repeated subsamples containing 85\% of customers without replacement. Global agreement between each resampled solution and the corresponding subset of the reference partition was measured using ARI and NMI. Because cluster labels are arbitrary, the Hungarian assignment algorithm was used to align resampled clusters to reference clusters by maximising overlap.
+
+For reference cluster $k$ and its aligned resampled counterpart, cluster-specific stability was measured by Jaccard similarity,
+\begin{equation}
+J_k=\frac{|A_k\cap B_k|}{|A_k\cup B_k|}.
+\end{equation}
+For each cluster we report mean, median, standard deviation, 5th--95th percentile interval, recovery frequency at $J\geq0.75$ and $J\geq0.85$, and variability in equivalent full-sample cluster size.
+
+\subsection{Analysis 4: statistical magnitude of persona differentiation}
+For interpretable persona variables, Kruskal--Wallis tests quantified between-cluster differences. Effect magnitude was summarised using epsilon-squared,
+\begin{equation}
+\epsilon^2=\frac{H-k+1}{n-k},
+\end{equation}
+where $H$ is the Kruskal--Wallis statistic, $k$ is the number of clusters, and $n$ is sample size. Benjamini--Hochberg correction was applied across omnibus numerical tests. Pairwise Mann--Whitney tests were Holm-adjusted within each feature, and rank-biserial correlation quantified pairwise effect direction and magnitude. Education and marital status were evaluated using $\chi^2$ tests with Cramer's $V$.
+
+These tests quantify how strongly characteristics differ across the derived personas. Because most tested characteristics are part of, or derived from, the clustering feature space, they are not interpreted as independent validation. Independent downstream validation is provided by the held-out final-campaign \texttt{Response} analysis.
+
+\section{Results}
+\subsection{Locked five-segment solution}
+The outcome-held-out Ward solution produced five clusters with sizes 635, 390, 1,162, 30, and 20. The overall silhouette coefficient was 0.1995. Table~\ref{tab:persona_profiles} summarises key cluster means from the locked pipeline.
+
+\begin{table}[!ht]
+\centering
+\caption{Key mean characteristics of the locked outcome-held-out five-cluster solution.}
+\label{tab:persona_profiles}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Characteristic} & \textbf{C0} & \textbf{C1} & \textbf{C2} & \textbf{C3} & \textbf{C4} \\
+\midrule
+Size & 635 & 390 & 1162 & 30 & 20 \\
+Income & 74,121 & 60,606 & 37,078 & 71,055 & 45,672 \\
+Age & 45.81 & 49.62 & 43.16 & 45.87 & 45.65 \\
+Kidhome & 0.08 & 0.18 & 0.74 & 0.07 & 0.65 \\
+Teenhome & 0.26 & 0.95 & 0.50 & 0.43 & 0.55 \\
+Total spend & 1,281 & 818 & 151 & 1,308 & 392 \\
+Total purchases & 19.48 & 17.61 & 6.93 & 18.23 & 11.20 \\
+Wine spend & 560 & 531 & 75 & 899 & 177 \\
+Meat spend & 416 & 154 & 34 & 250 & 118 \\
+Web purchases & 5.49 & 6.34 & 2.55 & 4.90 & 3.70 \\
+Catalog purchases & 5.57 & 3.26 & 0.82 & 5.17 & 2.10 \\
+Store purchases & 8.43 & 8.01 & 3.56 & 8.17 & 5.40 \\
+Web visits/month & 3.25 & 5.43 & 6.41 & 5.17 & 5.85 \\
+Previous campaign acceptances & 0.52 & 0.34 & 0.10 & 2.97 & 0.15 \\
+Held-out final response & 0.236 & 0.105 & 0.103 & 0.667 & 0.150 \\
+Complaint & 0.00 & 0.00 & 0.00 & 0.00 & 1.00 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The profiles support more cautious persona labels than the original manuscript. Cluster~0 is an \emph{Affluent Multichannel High-Value} segment, characterised by high income, spend, and catalog/store activity. Cluster~1 is a \emph{Mid-Value Family/Teen-Household} segment with the highest mean teen count and strong web/store purchasing, but later stability analysis shows that this segment is not highly reproducible. Cluster~2 is a \emph{Low-Value Web-Intensive} segment, with the lowest spending and purchasing but the highest web-visit intensity. Cluster~3 is a \emph{Campaign-Responsive High-Value Wine} niche, with very high historical campaign acceptance, wine spending, and final-campaign response. Cluster~4 is best interpreted as a \emph{Complaint-Flagged Moderate-Value} niche because all 20 members carry the complaint indicator; this cluster should not be presented as a general high-value marketing persona.
+
+\subsection{Outcome-held-out campaign validation}
+Removing final-campaign \texttt{Response} from clustering improved the silhouette coefficient from 0.1672 to 0.1995. The response-inclusive model retained 20 PCA components explaining 90.81\% variance, while the held-out model retained 19 components explaining 90.36\%. Agreement between the two partitions was moderate (ARI=0.5540; NMI=0.5419), indicating that removing the outcome changed the segmentation materially but did not produce an unrelated partition.
+
+More importantly, the response-held-out clusters remained strongly associated with final-campaign response ($\chi^2=126.3676$, df=4, $p=2.32839\times10^{-26}$, Cramer's $V=0.2377$). Response rates ranged from 10.33\% to 66.67\% (Table~\ref{tab:heldout_response}).
+
+\begin{table}[!ht]
+\centering
+\caption{Held-out final-campaign response validation by cluster.}
+\label{tab:heldout_response}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Cluster} & \textbf{$n$} & \textbf{Responders} & \textbf{Response \%} & \textbf{95\% CI} & \textbf{Odds ratio} & \textbf{OR 95\% CI} \\
+\midrule
+0 & 635 & 150 & 23.62 & 20.48--27.08 & 2.38 & 1.88--3.03 \\
+1 & 390 & 41 & 10.51 & 7.84--13.95 & 0.62 & 0.44--0.88 \\
+2 & 1162 & 120 & 10.33 & 8.71--12.21 & 0.46 & 0.36--0.59 \\
+3 & 30 & 20 & 66.67 & 48.78--80.77 & 12.06 & 5.59--26.00 \\
+4 & 20 & 3 & 15.00 & 5.24--36.04 & 1.01 & 0.29--3.45 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.88\textwidth]{analysis1_heldout_campaign_response.pdf}
+\caption{Final-campaign response rates across clusters constructed without access to the final-campaign \texttt{Response} variable. Error bars are 95\% Wilson confidence intervals; the dashed line shows the overall response rate of 14.9\%.}
+\label{fig:heldout_response}
+\end{figure}
+
+Cluster~3 showed the strongest response enrichment (66.67\%; OR=12.06), although its small size produced a wider confidence interval. Cluster~0 also showed elevated response (23.62\%; OR=2.38). Clusters~1 and~2 had lower response odds, while Cluster~4 did not differ meaningfully from the overall population (OR approximately 1). These results demonstrate that the segmentation retains downstream campaign relevance even when the final campaign outcome is excluded from discovery.
+
+\subsection{Feature-group ablation: compactness versus decision relevance}
+The ablation analysis revealed a clear separation between internal clustering geometry and held-out response relevance. Spending-only features produced the highest silhouette coefficient (0.4031), followed by spending+channel (0.2645) and channel-only (0.2556). By contrast, the full held-out feature set including historical campaign behaviour produced the strongest association with the final response (Cramer's $V=0.2377$) and the widest response-rate separation (56.34 percentage points).
+
+\begin{table}[!ht]
+\centering
+\caption{Feature-group ablation results for Ward clustering at $k=5$.}
+\label{tab:ablation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Configuration} & \textbf{PCA} & \textbf{Silhouette} & \textbf{Min $n$} & \textbf{Max $n$} & \textbf{Response range (pp)} & \textbf{Cramer's $V$} \\
+\midrule
+Demographics & 8 & 0.1831 & 267 & 675 & 20.19 & 0.2124 \\
+Spending & 5 & \textbf{0.4031} & 95 & 1154 & 27.59 & 0.2181 \\
+Channel & 4 & 0.2556 & 233 & 650 & 15.40 & 0.1746 \\
+Demographics + Spending & 12 & 0.1195 & 262 & 633 & 18.79 & 0.1986 \\
+Spending + Channel & 8 & 0.2645 & 233 & 917 & 19.03 & 0.2181 \\
+All behavioural, no campaign history & 16 & 0.1197 & 20 & 624 & 19.87 & 0.2158 \\
+Full held-out + campaign history & 19 & 0.1995 & 20 & 1162 & \textbf{56.34} & \textbf{0.2377} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+All seven configurations were significantly associated with the held-out response ($p<0.001$). However, the magnitudes differed substantially. This is the central decision-oriented result of the ablation: the feature set that maximises silhouette is not the feature set that maximises downstream outcome differentiation.
+
+\begin{figure}[!ht]
+\centering
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis2_ablation_silhouette.pdf}
+\caption{Internal compactness.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis2_ablation_cramers_v.pdf}
+\caption{Held-out association.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis2_ablation_response_separation.pdf}
+\caption{Response separation.}
+\end{subfigure}
+\caption{Feature-group ablation. Spending alone yields the strongest silhouette, whereas the full held-out representation including historical campaign behaviour yields the strongest held-out response differentiation.}
+\label{fig:ablation}
+\end{figure}
+
+\subsection{Global and cluster-specific reproducibility}
+Across 200 repeated 85\% subsamples, the full held-out pipeline achieved mean ARI=0.6612 (median=0.6521, SD=0.0860, 5th--95th percentile 0.5340--0.8149) and mean NMI=0.6443 (median=0.6402, SD=0.0572, 5th--95th percentile 0.5614--0.7462). These values indicate moderate-to-strong partition-level reproducibility, but cluster-specific results were heterogeneous.
+
+\begin{table}[!ht]
+\centering
+\caption{Cluster-specific stability across 200 repeated 85\% subsamples.}
+\label{tab:cluster_stability}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\toprule
+\textbf{Cluster} & \textbf{Ref. $n$} & \textbf{Mean J} & \textbf{Median J} & \textbf{J 5th} & \textbf{J 95th} & \textbf{Recovery $\geq0.75$} & \textbf{Recovery $\geq0.85$} & \textbf{Size CV} \\
+\midrule
+0 & 635 & 0.7647 & 0.7873 & 0.5795 & 0.8737 & 67.5\% & 14.0\% & 0.116 \\
+1 & 390 & 0.5248 & 0.5103 & 0.4165 & 0.6895 & 1.0\% & 0.0\% & 0.187 \\
+2 & 1162 & 0.8330 & 0.8281 & 0.7384 & 0.9297 & 92.0\% & 34.5\% & 0.106 \\
+3 & 30 & 0.9175 & 1.0000 & 0.1247 & 1.0000 & 90.5\% & 90.5\% & 1.214 \\
+4 & 20 & 0.9612 & 1.0000 & 1.0000 & 1.0000 & 96.0\% & 96.0\% & 1.281 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Cluster~1 is the clear instability point: its mean Jaccard was only 0.5248 and only 1\% of perturbation runs achieved $J\geq0.75$. Cluster~0 showed moderate recovery, while Cluster~2 was consistently reproducible. Clusters~3 and~4 were usually recovered with very high membership agreement, but their high size coefficients of variation show occasional large changes in estimated niche size. Therefore, these niche clusters are better described as \emph{high-membership-recovery but perturbation-sensitive in size}, rather than uniformly stable.
+
+\begin{figure}[!ht]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis3_cluster_jaccard_stability.pdf}
+\caption{Median Jaccard with 5th--95th percentile interval.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis3_cluster_recovery_frequency.pdf}
+\caption{Recovery at $J\geq0.75$.}
+\end{subfigure}
+\caption{Cluster-specific stability. Global agreement alone would obscure the instability of Cluster~1 and the distinct stability behaviour of the small niche clusters.}
+\label{fig:cluster_stability}
+\end{figure}
+
+\subsection{Magnitude and structure of persona differentiation}
+The strongest numerical persona differences were concentrated in economic value and purchase intensity. Total spend had the largest effect ($\epsilon^2=0.7072$), followed by total purchases (0.6550), meat spending (0.6524), income (0.6343), wine spending (0.6247), catalog purchases (0.6205), and store purchases (0.5673). In contrast, age (0.0419), tenure (0.0125), and recency (0.0045) showed small or negligible effects despite statistical significance.
+
+\begin{table}[!ht]
+\centering
+\caption{Kruskal--Wallis effect sizes for persona differentiation. All listed omnibus tests remained significant after Benjamini--Hochberg correction.}
+\label{tab:effect_sizes}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Feature} & \textbf{$H$} & \textbf{$\epsilon^2$} & \textbf{Magnitude} \\
+\midrule
+TotalSpend & 1582.49 & 0.7072 & Large \\
+TotalPurchases & 1465.86 & 0.6550 & Large \\
+MntMeatProducts & 1460.24 & 0.6524 & Large \\
+Income & 1419.71 & 0.6343 & Large \\
+MntWines & 1398.39 & 0.6247 & Large \\
+NumCatalogPurchases & 1388.85 & 0.6205 & Large \\
+NumStorePurchases & 1270.15 & 0.5673 & Large \\
+NumWebPurchases & 905.51 & 0.4039 & Large \\
+Kidhome & 802.81 & 0.3579 & Large \\
+MntGoldProds & 697.03 & 0.3105 & Large \\
+NumWebVisitsMonth & 691.53 & 0.3080 & Large \\
+Teenhome & 407.78 & 0.1809 & Large \\
+PreviousCampaignAcceptances & 332.86 & 0.1473 & Large \\
+Age & 97.53 & 0.0419 & Small \\
+TenureDays & 31.94 & 0.0125 & Small \\
+Recency & 14.14 & 0.0045 & Negligible \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Education differed across clusters ($\chi^2=102.78$, df=16, $p<0.001$, Cramer's $V=0.1072$), but the effect was modest. Marital status did not show reliable differentiation ($\chi^2=25.44$, df=28, $p=0.6041$, Cramer's $V=0.0533$). Thus, the locked personas are driven primarily by spending, purchasing, income, household structure, and campaign history rather than by marital status.
+
+\begin{figure}[!ht]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis4_numeric_effect_sizes.pdf}
+\caption{Ranked numerical effect sizes.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+\centering
+\includegraphics[width=\textwidth]{analysis4_standardised_persona_profiles.pdf}
+\caption{Standardised profiles of leading differentiators.}
+\end{subfigure}
+\caption{Persona differentiation is dominated by economic value and purchasing behaviour. Cluster~3 is especially elevated on wine spending, while Cluster~2 is consistently below the population mean on high-value purchasing indicators.}
+\label{fig:effect_profiles}
+\end{figure}
+
+Pairwise post-hoc tests reinforced these patterns. For example, Cluster~0 versus Cluster~2 showed very large rank-biserial effects for total spend ($r_{rb}=0.9784$), meat spending (0.9698), total purchases (0.9493), and income (0.9384). Historical campaign acceptance sharply distinguished Cluster~3 from Clusters~0, 1, 2, and 4, with absolute rank-biserial correlations above 0.90 for several comparisons.
+
+\section{Discussion}
+\subsection{From descriptive clustering to outcome-separated validation}
+The most important methodological change in the revised framework is the removal of final-campaign \texttt{Response} from cluster construction. The original analytical design used campaign-response information as part of the feature space and then evaluated response differences across clusters. The revised analysis demonstrates that meaningful campaign differentiation persists even when the final outcome is withheld. This is a stronger form of evidence because the downstream response association is no longer mechanically induced by directly clustering on the same variable.
+
+The fact that silhouette improved after removing \texttt{Response} is also informative. It indicates that the outcome variable was not required to produce the five-cluster geometry and may in fact have introduced additional heterogeneity. At the same time, the moderate ARI and NMI between the response-inclusive and response-held-out partitions show that outcome removal was consequential rather than cosmetic.
+
+\subsection{Compactness and decision relevance are different objectives}
+The ablation results provide the clearest evidence for the decision-oriented framing. Spending-only segmentation produced the strongest internal compactness, with silhouette 0.4031, yet the full held-out representation including historical campaign acceptance produced the strongest final-response differentiation. This means that choosing features or models solely because they maximise silhouette can lead to a segmentation that is geometrically attractive but less useful for campaign stratification.
+
+This result reframes the practical role of historical campaign behaviour. Previous campaign indicators do not simply improve compactness; instead, they add information that differentiates later campaign responsiveness. Importantly, the final-campaign response itself remains held out, preserving separation between discovery and evaluation. The implication is not that historical campaign variables should always be included, but that feature selection should be assessed against the decision objective rather than internal clustering geometry alone.
+
+\subsection{Stability is persona-specific}
+The revised stability analysis rejects the simplifying claim that all five personas are uniformly robust. Cluster~1 is unstable under perturbation, with a median Jaccard of 0.5103 and only 1\% recovery at $J\geq0.75$. This segment should therefore be treated as a soft or provisional operational grouping rather than a fixed customer archetype. Cluster~0 is moderately stable, and Cluster~2 is strongly reproducible. Clusters~3 and~4 show very high membership recovery in most resamples but occasional severe failures and high size variability. This distinction would have been missed by reporting only global ARI/NMI.
+
+For applied marketing analytics, the implication is that persona labels should carry confidence information. Stable clusters may support persistent targeting rules, whereas unstable clusters may be better used for exploratory messaging, dynamic assignment, or further validation before budget allocation. Small niche clusters should not automatically be interpreted as noise, but neither should they be called robust solely because they appear visually separated in one fitted solution.
+
+\subsection{What actually differentiates the personas}
+Formal effect-size analysis shows that the personas are driven overwhelmingly by economic value and purchasing behaviour. Total spend, purchase count, meat and wine expenditure, income, catalog purchasing, and store purchasing all show large effects. Household composition and web behaviour also contribute. By contrast, age and tenure show small effects and recency is practically negligible. Marital status is not significantly differentiated.
+
+These results sharpen the managerial interpretation. The segmentation is not primarily a demographic typology. It is a behavioural-value segmentation with demographic context. This supports a more restrained use of persona labels and avoids overinterpreting small demographic differences. It also suggests that operational deployment should prioritise spending and channel behaviour, which show the clearest quantitative separation.
+
+\subsection{Persona-specific implications}
+Cluster~0 represents a large, high-value multichannel customer base. Its above-average held-out response and broad purchase activity make it suitable for retention, premium cross-sell, and multichannel loyalty strategies. Cluster~2 is the largest segment but has low spend, low purchase counts, and low held-out response; low-cost engagement and friction reduction are more defensible than intensive promotional spend. Cluster~3 is a small but highly campaign-responsive high-value niche. Its 66.7\% held-out response and OR of 12.06 suggest strong targeting potential, but the wide confidence interval and size sensitivity require caution before large resource commitments. Cluster~4 is dominated by the complaint flag and should be handled primarily as a service-recovery or customer-experience segment rather than a generic marketing-value persona. Cluster~1 has commercially meaningful purchase behaviour but weak resampling stability; its operational use should therefore remain provisional.
+
+These recommendations deliberately avoid unsupported fixed budget percentages. The present dataset provides evidence of behavioural and response heterogeneity, not causal estimates of return on marketing spend. Budget allocation should therefore be validated using campaign experiments, incremental response modelling, or profit-based optimisation before deployment.
+
+\subsection{Theoretical and methodological contribution}
+The revised contribution is not a new clustering algorithm. Instead, it is a stricter validation architecture for customer micro-segmentation. It brings together four elements that are often treated separately: outcome separation, feature ablation, cluster-specific reproducibility, and formal effect-size profiling. This structure clarifies what each piece of evidence can and cannot support.
+
+Internal compactness addresses geometry. Held-out campaign response addresses downstream association. Bootstrap Jaccard addresses reproducibility of individual personas. Effect sizes address the magnitude of persona differentiation. Treating these as distinct validation targets makes the evidence more interpretable and reduces the risk of overstating a clustering solution on the basis of a single metric.
+
+\section{Limitations}
+Several limitations remain. First, the study uses one public retail dataset, so external generalisability has not yet been established. Second, the final-campaign response is held out from clustering, but the analysis remains observational and cross-sectional; the association between cluster membership and response should not be interpreted as causal uplift. Third, previous campaign acceptance variables are retained in the locked segmentation. This is appropriate for customer-history modelling but means that the framework uses prior campaign behaviour to stratify later campaign response. Fourth, the two niche clusters are small, and their size estimates are sensitive to perturbation even when membership recovery is usually high. Fifth, Cluster~4 is strongly tied to the complaint variable, illustrating how rare binary indicators can generate small structurally distinct clusters. Finally, $k=5$ was retained as a prespecified micro-segmentation operating point rather than reselected after outcome hold-out; future work should validate the conclusions across multiple prespecified granularities and independent datasets.
+
+Future work should therefore focus on external validation, temporal holdout designs, profit or CLV outcomes, fairness-aware segmentation, and randomised campaign data that permit causal uplift evaluation. A particularly useful extension would compare whether stable unsupervised personas correspond to heterogeneous treatment effects under a controlled marketing intervention.
+
+\section{Conclusion}
+This study presents a stability-aware, outcome-held-out framework for customer micro-segmentation. In 2,237 customers, a five-cluster Agglomerative Ward solution retained significant final-campaign differentiation even when the final response was completely excluded from clustering. Removing the outcome improved silhouette from 0.1672 to 0.1995, while held-out campaign association remained substantial ($\chi^2=126.37$, Cramer's $V=0.2377$). Feature ablation showed that spending variables produce the cleanest geometric clusters, whereas historical campaign information contributes most strongly to held-out response separation. Repeated subsampling demonstrated that reproducibility is heterogeneous across personas rather than uniform, and formal effect-size analysis showed that spend, purchase intensity, income, and channel behaviour dominate persona differentiation while age, tenure, recency, and marital status contribute much less.
+
+The main contribution is therefore methodological: segmentation quality should not be reduced to compactness. A customer persona is more defensible when its geometry, downstream relevance, reproducibility, and differentiating characteristics are evaluated separately. This framework provides a practical route toward more rigorous micro-segmentation without claiming causal marketing impact or overstating the stability of every discovered persona.
+
+\section*{Declarations}
+\subsection*{Author Contribution}
+All authors contributed to conceptualisation, methodology, software, formal analysis, interpretation, manuscript preparation, review, and validation. All authors have read and approved the final manuscript.
+
+\subsection*{Data Availability}
+The \textit{Customer Personality Analysis} dataset is publicly available from Kaggle at \url{https://www.kaggle.com/datasets/imakash3011/customer-personality-analysis}. The analysis uses anonymised customer records and no directly identifying information.
+
+\subsection*{Code Availability}
+Code for preprocessing, clustering, outcome-held-out validation, feature-group ablation, bootstrap stability, and effect-size analysis should be deposited with the final manuscript version. The existing project repository is available at \url{https://github.com/datascintist-abusufian/Micro-Segmentation-Through-Hybrid-Clustering}; the revised repository should be updated so that its scripts reproduce the corrected temporal preprocessing and all four validation analyses reported here.
+
+\subsection*{Conflict of Interest}
+The authors declare no competing interests.
+
+\subsection*{Funding}
+This research received no specific grant from public, commercial, or not-for-profit funding agencies.
+
+\subsection*{Ethical Considerations}
+Customer segmentation can create risks of exclusion, socioeconomic profiling, and inappropriate differential treatment. The personas in this study are descriptive analytical groupings, not protected-class labels or causal treatment rules. Income and education should be used cautiously in operational decision systems, and the complaint-based niche should be interpreted as a service-quality signal rather than a basis for adverse treatment. Future deployment should include fairness assessment, monitoring for differential impact, and human review of targeting policies.
+
+\appendix
+\section{Additional Validation Figures}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.82\textwidth]{analysis1_heldout_cluster_sizes.pdf}
+\caption{Cluster-size distribution for the locked outcome-held-out solution.}
+\end{figure}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.82\textwidth]{analysis3_cluster_jaccard_distribution.pdf}
+\caption{Distribution of cluster-specific Jaccard similarity across 200 resamples. The niche clusters are usually recovered perfectly but show occasional severe failures.}
+\end{figure}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.82\textwidth]{analysis3_global_bootstrap_stability.pdf}
+\caption{Global ARI and NMI distributions across 200 repeated subsamples.}
+\end{figure}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.82\textwidth]{analysis3_cluster_size_stability.pdf}
+\caption{Reference cluster sizes compared with resampled equivalent sizes.}
+\end{figure}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.72\textwidth]{analysis4_categorical_effect_sizes.pdf}
+\caption{Categorical effect sizes for Education and Marital Status.}
+\end{figure}
+
+\begin{thebibliography}{99}
+
+\bibitem{ref1}
+Wedel, M., \& Steenkamp, J.-B. E. M. (1991).
+A clusterwise regression method for simultaneous fuzzy market structuring and benefit segmentation.
+\textit{Journal of Marketing Research}, 28(4), 385--396.
+\url{https://www.jstor.org/stable/3172779}
+
+\bibitem{ref2}
+Dolnicar, S., \& Leisch, F. (2010).
+Evaluation of structure and reproducibility of cluster solutions using the bootstrap.
+\textit{Marketing Letters}, 21, 83--101.
+\url{https://doi.org/10.1007/s11002-009-9083-4}
+
+\bibitem{ref3}
+Xu, R., \& Wunsch, D. (2005).
+Survey of clustering algorithms.
+\textit{IEEE Transactions on Neural Networks}, 16(3), 645--678.
+\url{https://doi.org/10.1109/TNN.2005.845141}
+
+\bibitem{ref4}
+Jain, A. K. (2010).
+Data clustering: 50 years beyond K-means.
+\textit{Pattern Recognition Letters}, 31(8), 651--666.
+\url{https://doi.org/10.1016/j.patrec.2009.09.011}
+
+\bibitem{ref5}
+Hruschka, E. R., Campello, R. J. G. B., Freitas, A. A., \& de Carvalho, A. C. P. L. F. (2009).
+A survey of evolutionary algorithms for clustering.
+\textit{IEEE Transactions on Systems, Man, and Cybernetics, Part C}, 39(2), 133--155.
+\url{https://doi.org/10.1109/TSMCC.2008.2007252}
+
+\bibitem{ref6}
+Kotler, P., \& Keller, K. L. (2016).
+\textit{Marketing Management}.
+Pearson.
+
+\bibitem{ref7}
+Wedel, M., \& Kamakura, W. A. (2000).
+\textit{Market Segmentation: Conceptual and Methodological Foundations}.
+Springer.
+\url{https://link.springer.com/book/10.1007/978-1-4615-4651-1}
+
+\bibitem{ref8}
+Kumar, V., \& Reinartz, W. (2016).
+Creating enduring customer value.
+\textit{Journal of Marketing}, 80(6), 36--68.
+\url{https://doi.org/10.1509/jm.15.0414}
+
+\bibitem{ref9}
+Blattberg, R. C., Kim, B.-D., \& Neslin, S. A. (2008).
+\textit{Database Marketing: Analyzing and Managing Customers}.
+Springer.
+\url{https://doi.org/10.1007/978-0-387-72579-6}
+
+\bibitem{ref10}
+Verhoef, P. C., Lemon, K. N., Parasuraman, A., Roggeveen, A., Tsiros, M., \& Schlesinger, L. A. (2009).
+Customer experience creation: Determinants, dynamics and management strategies.
+\textit{Journal of Retailing}, 85(1), 31--41.
+\url{https://doi.org/10.1016/j.jretai.2008.11.001}
+
+\bibitem{ref11}
+Dolnicar, S. (2020).
+Market segmentation analysis in tourism: A perspective paper.
+\textit{Tourism Review}, 75(1), 45--48.
+\url{https://doi.org/10.1108/TR-02-2019-0041}
+
+\bibitem{ref12}
+Alves Gomes, M., \& Meisen, T. (2023).
+A review of customer segmentation methods for personalised customer targeting in e-commerce use cases.
+\textit{Information Systems and e-Business Management}, 21, 527--570.
+\url{https://doi.org/10.1007/s10257-023-00640-4}
+
+\bibitem{ref13}
+Khalili-Damghani, K., Abdi, F., \& Abolmakarem, S. (2018).
+Hybrid soft computing approach based on clustering, rule mining, and decision tree analysis for customer segmentation problem.
+\textit{Applied Soft Computing}, 73, 611--633.
+\url{https://doi.org/10.1016/j.asoc.2018.09.001}
+
+\bibitem{ref14}
+Ballestar, M. T., Grau-Carles, P., \& Sainz, J. (2018).
+Customer segmentation in e-commerce: Applications to the cashback business model.
+\textit{Journal of Business Research}, 88, 407--414.
+\url{https://doi.org/10.1016/j.jbusres.2017.11.047}
+
+\bibitem{ref15}
+Rehman, A., Khan, A. A., Saeed, A., \& Awan, S. H. (2025).
+Enhancing customer segmentation through factor analysis of mixed data (FAMD)-based approach using K-means and hierarchical clustering algorithms.
+\textit{Information}, 16(6), 441.
+\url{https://doi.org/10.3390/info16060441}
+
+\bibitem{ref16}
+Tabianan, K., Velu, S., \& Ravi, V. (2022).
+K-means clustering approach for intelligent customer segmentation using customer purchase behaviour data.
+\textit{Sustainability}, 14, 7243.
+\url{https://doi.org/10.3390/su14127243}
+
+\bibitem{ref17}
+Rungruang, C., Riyapan, P., Intarasit, A., Chuarkham, K., \& Muangprathub, J. (2024).
+RFM model-based customer segmentation using a hierarchical approach via FCA.
+\textit{Expert Systems with Applications}, 237, 121449.
+\url{https://doi.org/10.1016/j.eswa.2023.121449}
+
+\bibitem{ref18}
+Li, Y., et al. (2021).
+Customer segmentation using K-means clustering and the adaptive particle swarm optimisation algorithm.
+\textit{Applied Soft Computing}, 113, 107924.
+\url{https://doi.org/10.1016/j.asoc.2021.107924}
+
+\bibitem{ref19}
+Ling, et al. (2025).
+Research on consumer segmentation and response prediction model for precision marketing based on clustering and deep learning.
+In \textit{Proceedings of the ACM Conference}.
+\url{https://doi.org/10.1145/3762249.3762324}
+
+\bibitem{ref20}
+Marcos, R., et al. (2022).
+Applying hybrid machine learning algorithms to assess customer risk-adjusted revenue in the financial industry.
+\textit{Electronic Commerce Research and Applications}, 56, 101202.
+\url{https://doi.org/10.1016/j.elerap.2022.101202}
+
+\bibitem{ref21}
+Akande, O. N., et al. (2024).
+Customer segmentation through RFM analysis and K-means clustering: Leveraging data-driven insights for effective marketing strategy.
+In \textit{2024 International Conference on Science, Engineering and Business for Driving Sustainable Development Goals}, 1--8.
+\url{https://doi.org/10.1109/SEB4SDG60871.2024.10630052}
+
+\bibitem{ref22}
+Suh, Y. (2025).
+Discovering customer segments through interaction behaviours for home appliance business.
+\textit{Journal of Big Data}, 12, 57.
+\url{https://doi.org/10.1186/s40537-025-01111-y}
+
+\bibitem{ref23}
+Ania, H., Mahyuddin, M., \& Zamzami, E. M. (2025).
+Customer segmentation of mobile banking users using feature engineering and K-means clustering.
+\textit{Journal La Multiapp}, 6(3), 714--724.
+\url{https://doi.org/10.37899/journallamultiapp.v6i3.2377}
+
+\bibitem{ref24}
+Ashraf, A., et al. (2025).
+A framework for customer segmentation to improve marketing strategies using machine learning.
+\textit{Procedia Computer Science}, 260, 616--625.
+\url{https://doi.org/10.1016/j.procs.2025.03.240}
+
+\bibitem{ref25}
+Vianna Filho, et al. (2025).
+A graph-based approach to customer segmentation using the RFM model.
+\url{https://doi.org/10.48550/arXiv.2505.08136}
+
+\bibitem{ref26}
+Jolliffe, I. T., \& Cadima, J. (2016).
+Principal component analysis: A review and recent developments.
+\textit{Philosophical Transactions of the Royal Society A}, 374(2065), 20150202.
+\url{https://doi.org/10.1098/rsta.2015.0202}
+
+\bibitem{ref27}
+Bro, R., \& Smilde, A. K. (2014).
+Principal component analysis.
+\textit{Analytical Methods}, 6, 2812--2831.
+\url{https://doi.org/10.1039/C3AY41907J}
+
+\bibitem{ref28}
+Ding, C., \& He, X. (2004).
+K-means clustering via principal component analysis.
+In \textit{Proceedings of the 21st International Conference on Machine Learning}.
+
+\bibitem{ref29}
+Monti, S., Tamayo, P., Mesirov, J., \& Golub, T. (2003).
+Consensus clustering: A resampling-based method for class discovery and visualization of gene expression microarray data.
+\textit{Machine Learning}, 52(1--2), 91--118.
+
+\bibitem{ref30}
+Rousseeuw, P. J. (1987).
+Silhouettes: A graphical aid to the interpretation and validation of cluster analysis.
+\textit{Journal of Computational and Applied Mathematics}, 20, 53--65.
+\url{https://doi.org/10.1016/0377-0427(87)90125-7}
+
+\end{thebibliography}
+\end{document}

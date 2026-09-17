@@ -1,0 +1,30 @@
+ANALYSIS 3
+Cluster-Specific Bootstrap Stability
+===========================================================================
+
+Analysis sample size: 2237
+Number of clusters: 5
+Bootstrap iterations: 200
+Subsample fraction: 0.85
+Reference PCA components: 19
+Reference explained variance: 0.9036
+
+REFERENCE CLUSTER SIZES
+0     635
+1     390
+2    1162
+3      30
+4      20
+
+CLUSTER-SPECIFIC STABILITY
+ Cluster  Reference_Size  Mean_Jaccard  Median_Jaccard  SD_Jaccard  Jaccard_5th  Jaccard_95th  Recovery_Jaccard_GE_0.75  Recovery_Jaccard_GE_0.85  Mean_Equivalent_Size  SD_Equivalent_Size  Size_CV
+       0             635        0.7647          0.7873      0.0863       0.5795        0.8737                     0.675                     0.140              562.3507             65.3216   0.1162
+       1             390        0.5248          0.5103      0.0976       0.4165        0.6895                     0.010                     0.000              583.3792            108.7759   0.1865
+       2            1162        0.8330          0.8281      0.0611       0.7384        0.9297                     0.920                     0.345             1015.4109            107.6973   0.1061
+       3              30        0.9175          1.0000      0.2554       0.1247        1.0000                     0.905                     0.905               48.8763             59.3546   1.2144
+       4              20        0.9612          1.0000      0.1908       1.0000        1.0000                     0.960                     0.960               26.9829             34.5537   1.2806
+
+GLOBAL STABILITY
+Metric   Mean  Median     SD  5th_Percentile  95th_Percentile
+   ARI 0.6612  0.6521 0.0860          0.5340           0.8149
+   NMI 0.6443  0.6402 0.0572          0.5614           0.7462

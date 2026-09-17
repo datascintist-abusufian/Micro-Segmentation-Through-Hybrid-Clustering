@@ -1,0 +1,34 @@
+ANALYSIS 1
+Outcome-Held-Out Validation and Leakage Sensitivity Analysis
+============================================================
+
+Analysis sample size: 2237
+Full model PCA components: 20
+Held-out PCA components: 19
+Full model explained variance: 0.9081
+Held-out explained variance: 0.9036
+Full model silhouette: 0.1672
+Held-out model silhouette: 0.1995
+ARI between solutions: 0.5540
+NMI between solutions: 0.5419
+
+Chi-square: 126.3676
+Degrees of freedom: 4
+p-value: 2.328389141e-26
+Cramer's V: 0.2377
+
+Cluster sizes:
+Cluster_HeldOut
+0     635
+1     390
+2    1162
+3      30
+4      20
+
+Validation table:
+ Cluster_HeldOut    n  responders  response_rate  Response_Rate_Percent  CI_95_Lower  CI_95_Upper  Odds_Ratio  OR_95_Lower  OR_95_Upper
+               0  635         150         0.2362                23.6220       0.2048       0.2708      2.3835       1.8768       3.0269
+               1  390          41         0.1051                10.5128       0.0784       0.1395      0.6231       0.4405       0.8814
+               2 1162         120         0.1033                10.3270       0.0871       0.1221      0.4633       0.3641       0.5897
+               3   30          20         0.6667                66.6667       0.4878       0.8077     12.0573       5.5914      26.0005
+               4   20           3         0.1500                15.0000       0.0524       0.3604      1.0055       0.2930       3.4502

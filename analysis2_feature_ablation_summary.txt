@@ -1,0 +1,15 @@
+ANALYSIS 2
+Feature-Group Ablation Study
+======================================================================
+
+Analysis sample size: 2237
+Final Response was excluded from every clustering configuration.
+
+                        Configuration  PCA_Components  Silhouette  Min_Cluster_Size  Max_Cluster_Size  Min_Response_Percent  Max_Response_Percent  Response_Range_Percent  Cramers_V  P_Value
+                         Demographics               8      0.1831               267               675                8.1481               28.3422                 20.1941     0.2124      0.0
+                             Spending               5      0.4031                95              1154                9.5321               37.1212                 27.5891     0.2181      0.0
+                              Channel               4      0.2556               233               650                6.7692               22.1667                 15.3974     0.1746      0.0
+              Demographics + Spending              12      0.1195               262               633                4.4974               23.2824                 18.7851     0.1986      0.0
+                   Spending + Channel               8      0.2645               233               917                7.1618               26.1905                 19.0287     0.2181      0.0
+All Behavioural (No Campaign History)              16      0.1197                20               624                6.7308               26.6026                 19.8718     0.2158      0.0
+     Full Held-Out + Campaign History              19      0.1995                20              1162               10.3270               66.6667                 56.3396     0.2377      0.0
